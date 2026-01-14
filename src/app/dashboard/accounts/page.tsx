@@ -2,7 +2,24 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import {
   Plus,
@@ -31,10 +48,46 @@ const statusConfig: Record<string, { label: string; class: string }> = {
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [bulkInput, setBulkInput] = useState('')
+  const [store, setStore] = useState('AMAZON')
 
   useEffect(() => {
     fetchAccounts()
   }, [])
+
+  const createAccounts = async () => {
+    if (!bulkInput.trim()) return
+    setCreating(true)
+    const lines = bulkInput.split('\n').filter(l => l.trim())
+    const accountsData = lines.map(line => {
+      const parts = line.trim().split(':')
+      return {
+        store,
+        email: parts[0],
+        password: parts[1] || '',
+        imapConfig: parts[2] && parts[3] ? { host: 'imap.gmail.com', port: 993, user: parts[2], pass: parts[3] } : null,
+      }
+    }).filter(a => a.email && a.password)
+
+    try {
+      const res = await fetch('/api/bot/accounts/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accounts: accountsData }),
+      })
+      if (res.ok) {
+        await fetchAccounts()
+        setIsCreateOpen(false)
+        setBulkInput('')
+      }
+    } catch (error) {
+      console.error('Failed to create accounts:', error)
+    } finally {
+      setCreating(false)
+    }
+  }
 
   const fetchAccounts = async () => {
     try {
@@ -76,10 +129,47 @@ export default function AccountsPage() {
           <h1 className="text-2xl font-bold">Accounts</h1>
           <p className="text-muted-foreground">Manage your store accounts</p>
         </div>
-        <Button variant="cyber" className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add Account
-        </Button>
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogTrigger asChild>
+            <Button variant="cyber" className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add Account
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Accounts</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Store</Label>
+                <Select value={store} onValueChange={setStore}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AMAZON">Amazon</SelectItem>
+                    <SelectItem value="CARREFOUR">Carrefour</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Accounts (one per line)</Label>
+                <p className="text-xs text-muted-foreground">Format: email:password or email:password:imapUser:imapPass</p>
+                <Textarea
+                  value={bulkInput}
+                  onChange={(e) => setBulkInput(e.target.value)}
+                  placeholder="user@gmail.com:password123&#10;user2@outlook.com:pass456:imap@gmail.com:appPass"
+                  className="font-mono text-xs h-32"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <Button variant="secondary" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+                <Button variant="cyber" onClick={createAccounts} disabled={creating || !bulkInput.trim()}>
+                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : `Import ${bulkInput.split('\n').filter(l => l.trim()).length} Accounts`}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="yvora-card overflow-hidden">

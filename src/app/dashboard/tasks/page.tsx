@@ -5,11 +5,25 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import {
   Plus,
   Play,
-  Square,
   Trash2,
   Search,
   ShoppingBag,
@@ -47,6 +61,15 @@ export default function TasksPage() {
   const [selectedTasks, setSelectedTasks] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [newTask, setNewTask] = useState({
+    store: 'AMAZON',
+    productSku: '',
+    productName: '',
+    mode: 'NORMAL',
+    quantity: 1,
+  })
 
   useEffect(() => {
     fetchTasks()
@@ -81,6 +104,28 @@ export default function TasksPage() {
   const deleteSelectedTasks = async () => {
     for (const taskId of selectedTasks) {
       await deleteTask(taskId)
+    }
+  }
+
+  const createTask = async () => {
+    if (!newTask.productSku) return
+    setCreating(true)
+    try {
+      const res = await fetch('/api/bot/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newTask),
+      })
+      if (res.ok) {
+        const task = await res.json()
+        setTasks([task, ...tasks])
+        setIsCreateOpen(false)
+        setNewTask({ store: 'AMAZON', productSku: '', productName: '', mode: 'NORMAL', quantity: 1 })
+      }
+    } catch (error) {
+      console.error('Failed to create task:', error)
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -137,10 +182,75 @@ export default function TasksPage() {
             </Button>
           )}
         </div>
-        <Button variant="cyber" className="gap-2">
-          <Plus className="h-4 w-4" />
-          Create Task
-        </Button>
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogTrigger asChild>
+            <Button variant="cyber" className="gap-2">
+              <Plus className="h-4 w-4" />
+              Create Task
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create Task</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Store</Label>
+                <Select value={newTask.store} onValueChange={(v) => setNewTask({...newTask, store: v})}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AMAZON">Amazon</SelectItem>
+                    <SelectItem value="CARREFOUR">Carrefour</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Product SKU / ASIN</Label>
+                <Input 
+                  placeholder="B09DFCB66S" 
+                  value={newTask.productSku}
+                  onChange={(e) => setNewTask({...newTask, productSku: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Product Name (optional)</Label>
+                <Input 
+                  placeholder="PlayStation 5" 
+                  value={newTask.productName}
+                  onChange={(e) => setNewTask({...newTask, productName: e.target.value})}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Mode</Label>
+                  <Select value={newTask.mode} onValueChange={(v) => setNewTask({...newTask, mode: v})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NORMAL">Normal</SelectItem>
+                      <SelectItem value="FAST">Fast</SelectItem>
+                      <SelectItem value="SAFE">Safe</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Quantity</Label>
+                  <Input 
+                    type="number" 
+                    min={1}
+                    value={newTask.quantity}
+                    onChange={(e) => setNewTask({...newTask, quantity: parseInt(e.target.value) || 1})}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <Button variant="secondary" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+                <Button variant="cyber" onClick={createTask} disabled={creating || !newTask.productSku}>
+                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create Task'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="yvora-card overflow-hidden">
