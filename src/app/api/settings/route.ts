@@ -40,6 +40,7 @@ export async function POST(request: Request) {
         data: {
           twoCaptchaKey: body.twoCaptchaKey ?? existingSettings.twoCaptchaKey,
           heroSmsKey: body.heroSmsKey ?? existingSettings.heroSmsKey,
+          webhooks: body.webhooks ? (body.webhooks as object) : existingSettings.webhooks,
         },
       })
     } else {
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
         data: {
           twoCaptchaKey: body.twoCaptchaKey || null,
           heroSmsKey: body.heroSmsKey || null,
+          webhooks: body.webhooks ? (body.webhooks as object) : [],
         },
       })
     }
