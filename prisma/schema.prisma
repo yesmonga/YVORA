@@ -257,8 +257,6 @@ model Proxy {
 
 model Settings {
   id                  String   @id @default(cuid())
-  userId              String   @unique
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   // Discord Webhooks (JSON array)
   webhooks            Json?    // [{ id, name, url, status }]

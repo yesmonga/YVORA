@@ -10,19 +10,7 @@ interface WebhookData {
 
 export async function GET() {
   try {
-    // Get or create default user first
-    let user = await prisma.user.findFirst({ where: { email: 'admin@yvora.io' } })
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          email: 'admin@yvora.io',
-          name: 'Admin',
-          password: 'admin',
-        },
-      })
-    }
-    
-    const settings = await prisma.settings.findFirst({ where: { userId: user.id } })
+    const settings = await prisma.settings.findFirst()
     const webhooks = (settings?.webhooks as unknown as WebhookData[]) || []
     
     return NextResponse.json({
@@ -44,19 +32,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     
-    // Get or create default user first
-    let user = await prisma.user.findFirst({ where: { email: 'admin@yvora.io' } })
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          email: 'admin@yvora.io',
-          name: 'Admin',
-          password: 'admin',
-        },
-      })
-    }
-    
-    const existingSettings = await prisma.settings.findFirst({ where: { userId: user.id } })
+    const existingSettings = await prisma.settings.findFirst()
     
     if (existingSettings) {
       await prisma.settings.update({
@@ -69,7 +45,6 @@ export async function POST(request: Request) {
     } else {
       await prisma.settings.create({
         data: {
-          userId: user.id,
           twoCaptchaKey: body.twoCaptchaKey || null,
           heroSmsKey: body.heroSmsKey || null,
         },
