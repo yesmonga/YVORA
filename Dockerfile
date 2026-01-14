@@ -19,7 +19,8 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 
-RUN apk add --no-cache openssl
+# Install OpenSSL for Prisma AND Prisma CLI globally for db push
+RUN apk add --no-cache openssl && npm install -g prisma
 
 ENV NODE_ENV=production
 
@@ -38,4 +39,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+# Run prisma db push to create tables, then start server
+CMD ["/bin/sh", "-c", "prisma db push && node server.js"]
