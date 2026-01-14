@@ -20,7 +20,7 @@ FROM base AS runner
 WORKDIR /app
 
 # Install OpenSSL for Prisma AND Prisma CLI globally for db push
-RUN apk add --no-cache openssl && npm install -g prisma
+RUN apk add --no-cache openssl && npm install -g prisma@5.22.0
 
 ENV NODE_ENV=production
 
