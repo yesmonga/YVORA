@@ -34,13 +34,16 @@ export async function POST(request: Request) {
     
     const existingSettings = await prisma.settings.findFirst()
     
+    // Safe webhooks data with proper typing for Prisma Json field
+    const webhooksData = (body.webhooks ?? existingSettings?.webhooks ?? []) as any
+
     if (existingSettings) {
       await prisma.settings.update({
         where: { id: existingSettings.id },
         data: {
           twoCaptchaKey: body.twoCaptchaKey ?? existingSettings.twoCaptchaKey,
           heroSmsKey: body.heroSmsKey ?? existingSettings.heroSmsKey,
-          webhooks: body.webhooks ? (body.webhooks as object) : existingSettings.webhooks,
+          webhooks: webhooksData,
         },
       })
     } else {
@@ -48,7 +51,7 @@ export async function POST(request: Request) {
         data: {
           twoCaptchaKey: body.twoCaptchaKey || null,
           heroSmsKey: body.heroSmsKey || null,
-          webhooks: body.webhooks ? (body.webhooks as object) : [],
+          webhooks: (body.webhooks ?? []) as any,
         },
       })
     }
