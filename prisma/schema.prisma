@@ -80,7 +80,6 @@ model User {
   profiles      Profile[]
   accountGroups AccountGroup[]
   proxyGroups   ProxyGroup[]
-  settings      Settings?
 }
 
 model TaskGroup {
