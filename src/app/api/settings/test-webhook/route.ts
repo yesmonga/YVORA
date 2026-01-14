@@ -12,13 +12,21 @@ export async function POST(request: Request) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        avatar_url: 'https://i.imgur.com/AfFp7pu.png',
+        username: 'YVORA',
+        content: null,
         embeds: [{
-          title: '✅ YVORA Webhook Test',
-          description: `Webhook **${name || 'Unknown'}** is working correctly!`,
+          title: '**YVORA Webhook Test**',
+          url: 'https://github.com/yesmonga/YVORA',
           color: 0xa855f7, // Purple color matching YVORA theme
+          description: `\`\`\`Webhook "${name || 'Unknown'}" is working correctly!\`\`\``,
           timestamp: new Date().toISOString(),
           footer: {
+            icon_url: 'https://i.imgur.com/AfFp7pu.png',
             text: 'YVORA Bot Controller',
+          },
+          thumbnail: {
+            url: 'https://i.imgur.com/AfFp7pu.png',
           },
         }],
       }),

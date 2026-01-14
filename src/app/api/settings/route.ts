@@ -10,7 +10,19 @@ interface WebhookData {
 
 export async function GET() {
   try {
-    const settings = await prisma.settings.findFirst()
+    // Get or create default user first
+    let user = await prisma.user.findFirst({ where: { email: 'admin@yvora.io' } })
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email: 'admin@yvora.io',
+          name: 'Admin',
+          password: 'admin',
+        },
+      })
+    }
+    
+    const settings = await prisma.settings.findFirst({ where: { userId: user.id } })
     const webhooks = (settings?.webhooks as unknown as WebhookData[]) || []
     
     return NextResponse.json({
