@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { randomUUID } from 'crypto'
 
+interface WebhookData {
+  id: string
+  name: string
+  url: string
+  status: string
+}
+
 export async function POST(request: Request) {
   try {
     const { name, url } = await request.json()
@@ -10,7 +17,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Name and URL required' }, { status: 400 })
     }
 
-    const newWebhook = {
+    const newWebhook: WebhookData = {
       id: randomUUID(),
       name,
       url,
@@ -20,25 +27,19 @@ export async function POST(request: Request) {
     const existingSettings = await prisma.settings.findFirst()
     
     if (existingSettings) {
-      const webhooks = existingSettings.webhooks as { discord?: Array<typeof newWebhook> } || {}
-      const discordWebhooks = webhooks.discord || []
+      const currentWebhooks = (existingSettings.webhooks as unknown as WebhookData[]) || []
       
       await prisma.settings.update({
         where: { id: existingSettings.id },
         data: {
-          webhooks: {
-            ...webhooks,
-            discord: [...discordWebhooks, newWebhook],
-          },
+          webhooks: [...currentWebhooks, newWebhook] as unknown as object,
         },
       })
     } else {
       await prisma.settings.create({
         data: {
           userId: 'default',
-          webhooks: {
-            discord: [newWebhook],
-          },
+          webhooks: [newWebhook] as unknown as object,
         },
       })
     }

@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+interface WebhookData {
+  id: string
+  name: string
+  url: string
+  status: string
+}
+
 export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
@@ -12,18 +19,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Settings not found' }, { status: 404 })
     }
 
-    const webhooks = existingSettings.webhooks as { discord?: Array<{ id: string }> } || {}
-    const discordWebhooks = webhooks.discord || []
-    
-    const updatedWebhooks = discordWebhooks.filter(w => w.id !== params.id)
+    const currentWebhooks = (existingSettings.webhooks as unknown as WebhookData[]) || []
+    const updatedWebhooks = currentWebhooks.filter(w => w.id !== params.id)
     
     await prisma.settings.update({
       where: { id: existingSettings.id },
       data: {
-        webhooks: {
-          ...webhooks,
-          discord: updatedWebhooks,
-        },
+        webhooks: updatedWebhooks as unknown as object,
       },
     })
 

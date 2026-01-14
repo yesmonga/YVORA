@@ -11,7 +11,7 @@ interface WebhookData {
 export async function GET() {
   try {
     const settings = await prisma.settings.findFirst()
-    const webhooks = (settings?.webhooks as WebhookData[]) || []
+    const webhooks = (settings?.webhooks as unknown as WebhookData[]) || []
     
     return NextResponse.json({
       twoCaptchaKey: settings?.twoCaptchaKey || '',
