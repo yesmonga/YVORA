@@ -260,16 +260,19 @@ model Settings {
   userId              String   @unique
   user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  // Discord Webhooks
-  discordWebhookSuccess String?
-  discordWebhookFailure String?
+  // Discord Webhooks (JSON array)
+  webhooks            Json?    // [{ id, name, url, status }]
   
-  // Captcha
-  captchaProvider     String?  // 2captcha, capmonster, anticaptcha
+  // Captcha - 2Captcha
+  twoCaptchaKey       String?
+  
+  // SMS - Hero SMS
+  heroSmsKey          String?
+  
+  // Legacy fields
+  captchaProvider     String?
   captchaApiKey       String?
-  
-  // SMS
-  smsProvider         String?  // 5sim, sms-activate
+  smsProvider         String?
   smsApiKey           String?
   
   // Generator defaults

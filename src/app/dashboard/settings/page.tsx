@@ -1,191 +1,348 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import {
-  Settings,
-  Bell,
+  Play,
+  Pencil,
+  Trash2,
+  Plus,
+  Loader2,
+  Link,
+  MessageSquare,
   Shield,
-  Webhook,
-  Cpu,
-  Save,
-  RefreshCw,
 } from 'lucide-react'
 
+interface Webhook {
+  id: string
+  name: string
+  url: string
+  status: string
+}
+
 export default function SettingsPage() {
-  const [notifications, setNotifications] = useState(true)
-  const [soundEnabled, setSoundEnabled] = useState(true)
-  const [autoRetry, setAutoRetry] = useState(true)
+  const [webhooks, setWebhooks] = useState<Webhook[]>([])
+  const [twoCaptchaKey, setTwoCaptchaKey] = useState('')
+  const [heroSmsKey, setHeroSmsKey] = useState('')
+  const [twoCaptchaBalance, setTwoCaptchaBalance] = useState<string | null>(null)
+  const [heroSmsBalance, setHeroSmsBalance] = useState<string | null>(null)
+  const [checkingTwoCaptcha, setCheckingTwoCaptcha] = useState(false)
+  const [checkingHeroSms, setCheckingHeroSms] = useState(false)
+  const [testingWebhook, setTestingWebhook] = useState<string | null>(null)
+  const [isAddWebhookOpen, setIsAddWebhookOpen] = useState(false)
+  const [newWebhook, setNewWebhook] = useState({ name: '', url: '' })
+  const [addingWebhook, setAddingWebhook] = useState(false)
+
+  useEffect(() => {
+    fetchSettings()
+  }, [])
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/settings')
+      if (res.ok) {
+        const data = await res.json()
+        setTwoCaptchaKey(data.twoCaptchaKey || '')
+        setHeroSmsKey(data.heroSmsKey || '')
+        setWebhooks(data.webhooks || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch settings:', error)
+    }
+  }
+
+  const checkTwoCaptchaBalance = async () => {
+    if (!twoCaptchaKey) return
+    setCheckingTwoCaptcha(true)
+    setTwoCaptchaBalance(null)
+    try {
+      const res = await fetch('/api/settings/test-2captcha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: twoCaptchaKey }),
+      })
+      const data = await res.json()
+      if (data.balance !== undefined) {
+        setTwoCaptchaBalance(`$${data.balance.toFixed(2)}`)
+      } else {
+        setTwoCaptchaBalance('Error: ' + (data.error || 'Invalid key'))
+      }
+    } catch {
+      setTwoCaptchaBalance('Error: Connection failed')
+    } finally {
+      setCheckingTwoCaptcha(false)
+    }
+  }
+
+  const checkHeroSmsBalance = async () => {
+    if (!heroSmsKey) return
+    setCheckingHeroSms(true)
+    setHeroSmsBalance(null)
+    try {
+      const res = await fetch('/api/settings/test-herosms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: heroSmsKey }),
+      })
+      const data = await res.json()
+      if (data.balance !== undefined) {
+        setHeroSmsBalance(`$${data.balance}`)
+      } else {
+        setHeroSmsBalance('Error: ' + (data.error || 'Invalid key'))
+      }
+    } catch {
+      setHeroSmsBalance('Error: Connection failed')
+    } finally {
+      setCheckingHeroSms(false)
+    }
+  }
+
+  const testWebhook = async (webhook: Webhook) => {
+    setTestingWebhook(webhook.id)
+    try {
+      const res = await fetch('/api/settings/test-webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: webhook.url, name: webhook.name }),
+      })
+      if (res.ok) {
+        setWebhooks(webhooks.map(w => w.id === webhook.id ? { ...w, status: 'Active' } : w))
+      } else {
+        setWebhooks(webhooks.map(w => w.id === webhook.id ? { ...w, status: 'Failed' } : w))
+      }
+    } catch {
+      setWebhooks(webhooks.map(w => w.id === webhook.id ? { ...w, status: 'Failed' } : w))
+    } finally {
+      setTestingWebhook(null)
+    }
+  }
+
+  const addWebhook = async () => {
+    if (!newWebhook.name || !newWebhook.url) return
+    setAddingWebhook(true)
+    try {
+      const res = await fetch('/api/settings/webhooks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newWebhook),
+      })
+      if (res.ok) {
+        const webhook = await res.json()
+        setWebhooks([...webhooks, webhook])
+        setNewWebhook({ name: '', url: '' })
+        setIsAddWebhookOpen(false)
+      }
+    } catch (error) {
+      console.error('Failed to add webhook:', error)
+    } finally {
+      setAddingWebhook(false)
+    }
+  }
+
+  const deleteWebhook = async (id: string) => {
+    try {
+      const res = await fetch(`/api/settings/webhooks/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setWebhooks(webhooks.filter(w => w.id !== id))
+      }
+    } catch (error) {
+      console.error('Failed to delete webhook:', error)
+    }
+  }
+
+  const saveApiKeys = async () => {
+    try {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ twoCaptchaKey, heroSmsKey }),
+      })
+    } catch (error) {
+      console.error('Failed to save settings:', error)
+    }
+  }
 
   return (
-    <div className="max-w-4xl">
-      <div className="mb-6">
+    <div className="space-y-6">
+      <div>
         <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Configure your bot preferences</p>
+        <p className="text-muted-foreground">Configure webhooks, captcha, and SMS providers</p>
       </div>
 
-      <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="general" className="gap-2">
-            <Settings className="h-4 w-4" />
-            General
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-2">
-            <Bell className="h-4 w-4" />
-            Notifications
-          </TabsTrigger>
-          <TabsTrigger value="automation" className="gap-2">
-            <Cpu className="h-4 w-4" />
-            Automation
-          </TabsTrigger>
-          <TabsTrigger value="webhooks" className="gap-2">
-            <Webhook className="h-4 w-4" />
-            Webhooks
-          </TabsTrigger>
-        </TabsList>
+      {/* Discord Webhooks */}
+      <div className="yvora-card p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <MessageSquare className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-semibold">Discord Webhooks</h2>
+        </div>
+        <p className="text-sm text-muted-foreground">Create and test all the webhooks you'll need</p>
+        
+        <div className="overflow-hidden rounded-lg border border-yvora-border">
+          <table className="w-full">
+            <thead className="bg-yvora-body">
+              <tr className="border-b border-yvora-border">
+                <th className="p-3 text-left text-xs font-medium text-muted-foreground">#</th>
+                <th className="p-3 text-left text-xs font-medium text-muted-foreground">
+                  <Link className="h-4 w-4 inline mr-1" /> Webhook
+                </th>
+                <th className="p-3 text-left text-xs font-medium text-muted-foreground">Status</th>
+                <th className="p-3 text-left text-xs font-medium text-muted-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {webhooks.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="p-4 text-center text-muted-foreground">
+                    No webhooks configured
+                  </td>
+                </tr>
+              ) : (
+                webhooks.map((webhook, index) => (
+                  <tr key={webhook.id} className="border-b border-yvora-border hover:bg-yvora-border/30">
+                    <td className="p-3 text-sm">{index + 1}</td>
+                    <td className="p-3 text-sm">{webhook.name}</td>
+                    <td className="p-3 text-sm">
+                      <span className={webhook.status === 'Active' ? 'text-green-400' : webhook.status === 'Failed' ? 'text-red-400' : 'text-muted-foreground'}>
+                        {webhook.status || 'Idle'}
+                      </span>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-green-400"
+                          onClick={() => testWebhook(webhook)}
+                          disabled={testingWebhook === webhook.id}
+                        >
+                          {testingWebhook === webhook.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-400">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-400"
+                          onClick={() => deleteWebhook(webhook.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-        <TabsContent value="general" className="space-y-6">
-          <div className="cyber-card p-6 space-y-6">
-            <h2 className="text-lg font-semibold">General Settings</h2>
-            <div className="grid gap-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Theme</p>
-                  <p className="text-sm text-muted-foreground">Select color theme</p>
-                </div>
-                <Select defaultValue="dark">
-                  <SelectTrigger className="w-40 bg-cyber-body">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="dark">Dark (Cyber)</SelectItem>
-                    <SelectItem value="light">Light</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Language</p>
-                  <p className="text-sm text-muted-foreground">Interface language</p>
-                </div>
-                <Select defaultValue="en">
-                  <SelectTrigger className="w-40 bg-cyber-body">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="fr">Français</SelectItem>
-                    <SelectItem value="de">Deutsch</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-
-          <div className="cyber-card p-6 space-y-6">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Shield className="h-5 w-5 text-primary" />
-              License
-            </h2>
-            <div className="space-y-4">
+        <Dialog open={isAddWebhookOpen} onOpenChange={setIsAddWebhookOpen}>
+          <DialogTrigger asChild>
+            <Button variant="secondary" className="w-full gap-2">
+              <Plus className="h-4 w-4" />
+              ADD WEBHOOK
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Webhook</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>License Key</Label>
-                <div className="flex gap-2">
-                  <Input value="XXXX-XXXX-XXXX-XXXX" readOnly className="bg-cyber-body font-mono" />
-                  <Button variant="secondary">
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <div className="p-3 rounded-lg bg-primary/10 border border-primary/30">
-                <p className="text-sm text-primary">✓ Lifetime License - All features unlocked</p>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="notifications" className="space-y-6">
-          <div className="cyber-card p-6 space-y-6">
-            <h2 className="text-lg font-semibold">Notification Preferences</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Enable Notifications</p>
-                  <p className="text-sm text-muted-foreground">Show desktop notifications</p>
-                </div>
-                <Switch checked={notifications} onCheckedChange={setNotifications} />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Sound Effects</p>
-                  <p className="text-sm text-muted-foreground">Play sounds on events</p>
-                </div>
-                <Switch checked={soundEnabled} onCheckedChange={setSoundEnabled} />
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="automation" className="space-y-6">
-          <div className="cyber-card p-6 space-y-6">
-            <h2 className="text-lg font-semibold">Automation Settings</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Auto-Retry on Error</p>
-                  <p className="text-sm text-muted-foreground">Automatically retry failed tasks</p>
-                </div>
-                <Switch checked={autoRetry} onCheckedChange={setAutoRetry} />
+                <Label>Name</Label>
+                <Input
+                  placeholder="Success Notifications"
+                  value={newWebhook.name}
+                  onChange={(e) => setNewWebhook({ ...newWebhook, name: e.target.value })}
+                />
               </div>
               <div className="space-y-2">
-                <Label>Retry Delay (seconds)</Label>
-                <Input type="number" defaultValue={5} className="bg-cyber-body w-32" />
+                <Label>Webhook URL</Label>
+                <Input
+                  placeholder="https://discord.com/api/webhooks/..."
+                  value={newWebhook.url}
+                  onChange={(e) => setNewWebhook({ ...newWebhook, url: e.target.value })}
+                />
               </div>
-              <div className="space-y-2">
-                <Label>Max Retries</Label>
-                <Input type="number" defaultValue={3} className="bg-cyber-body w-32" />
+              <div className="flex justify-end gap-3">
+                <Button variant="secondary" onClick={() => setIsAddWebhookOpen(false)}>Cancel</Button>
+                <Button variant="cyber" onClick={addWebhook} disabled={addingWebhook || !newWebhook.name || !newWebhook.url}>
+                  {addingWebhook ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Webhook'}
+                </Button>
               </div>
             </div>
-          </div>
-        </TabsContent>
+          </DialogContent>
+        </Dialog>
+      </div>
 
-        <TabsContent value="webhooks" className="space-y-6">
-          <div className="cyber-card p-6 space-y-6">
-            <h2 className="text-lg font-semibold">Discord Webhooks</h2>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Success Webhook</Label>
-                <Input placeholder="https://discord.com/api/webhooks/..." className="bg-cyber-body" />
-              </div>
-              <div className="space-y-2">
-                <Label>Error Webhook</Label>
-                <Input placeholder="https://discord.com/api/webhooks/..." className="bg-cyber-body" />
-              </div>
-              <Button variant="secondary" className="gap-2">
-                <Bell className="h-4 w-4" />
-                Test Webhooks
-              </Button>
-            </div>
+      {/* 2Captcha */}
+      <div className="yvora-card p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold">2Captcha</h2>
           </div>
-        </TabsContent>
-      </Tabs>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={checkTwoCaptchaBalance}
+            disabled={checkingTwoCaptcha || !twoCaptchaKey}
+          >
+            {checkingTwoCaptcha ? <Loader2 className="h-4 w-4 animate-spin" /> : 'CHECK BALANCE'}
+          </Button>
+        </div>
+        <Input
+          placeholder="Your 2Captcha API Key"
+          value={twoCaptchaKey}
+          onChange={(e) => setTwoCaptchaKey(e.target.value)}
+          onBlur={saveApiKeys}
+          className="font-mono"
+        />
+        {twoCaptchaBalance && (
+          <p className={`text-sm ${twoCaptchaBalance.startsWith('Error') ? 'text-red-400' : 'text-green-400'}`}>
+            Balance: {twoCaptchaBalance}
+          </p>
+        )}
+      </div>
 
-      <div className="flex justify-end mt-6">
-        <Button variant="cyber" className="gap-2">
-          <Save className="h-4 w-4" />
-          Save Settings
-        </Button>
+      {/* Hero SMS */}
+      <div className="yvora-card p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold">Hero SMS</h2>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={checkHeroSmsBalance}
+            disabled={checkingHeroSms || !heroSmsKey}
+          >
+            {checkingHeroSms ? <Loader2 className="h-4 w-4 animate-spin" /> : 'CHECK BALANCE'}
+          </Button>
+        </div>
+        <Input
+          placeholder="Your Hero SMS API Key"
+          value={heroSmsKey}
+          onChange={(e) => setHeroSmsKey(e.target.value)}
+          onBlur={saveApiKeys}
+          className="font-mono"
+        />
+        {heroSmsBalance && (
+          <p className={`text-sm ${heroSmsBalance.startsWith('Error') ? 'text-red-400' : 'text-green-400'}`}>
+            Balance: {heroSmsBalance}
+          </p>
+        )}
       </div>
     </div>
   )
