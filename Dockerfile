@@ -40,4 +40,4 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Run prisma db push to create tables, then start server
-CMD ["/bin/sh", "-c", "prisma db push && node server.js"]
+CMD ["/bin/sh", "-c", "prisma db push --skip-generate && node server.js"]
