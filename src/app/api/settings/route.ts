@@ -32,7 +32,19 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     
-    const existingSettings = await prisma.settings.findFirst()
+    // Get or create default user first
+    let user = await prisma.user.findFirst({ where: { email: 'admin@yvora.io' } })
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email: 'admin@yvora.io',
+          name: 'Admin',
+          password: 'admin',
+        },
+      })
+    }
+    
+    const existingSettings = await prisma.settings.findFirst({ where: { userId: user.id } })
     
     if (existingSettings) {
       await prisma.settings.update({
@@ -45,7 +57,7 @@ export async function POST(request: Request) {
     } else {
       await prisma.settings.create({
         data: {
-          userId: 'default',
+          userId: user.id,
           twoCaptchaKey: body.twoCaptchaKey || null,
           heroSmsKey: body.heroSmsKey || null,
         },

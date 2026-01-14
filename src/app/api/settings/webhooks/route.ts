@@ -24,7 +24,19 @@ export async function POST(request: Request) {
       status: 'Idle',
     }
 
-    const existingSettings = await prisma.settings.findFirst()
+    // Get or create default user first
+    let user = await prisma.user.findFirst({ where: { email: 'admin@yvora.io' } })
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email: 'admin@yvora.io',
+          name: 'Admin',
+          password: 'admin',
+        },
+      })
+    }
+
+    const existingSettings = await prisma.settings.findFirst({ where: { userId: user.id } })
     
     if (existingSettings) {
       const currentWebhooks = (existingSettings.webhooks as unknown as WebhookData[]) || []
@@ -38,7 +50,7 @@ export async function POST(request: Request) {
     } else {
       await prisma.settings.create({
         data: {
-          userId: 'default',
+          userId: user.id,
           webhooks: [newWebhook] as unknown as object,
         },
       })

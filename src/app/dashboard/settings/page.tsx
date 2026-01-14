@@ -159,15 +159,26 @@ export default function SettingsPage() {
     }
   }
 
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
   const saveApiKeys = async () => {
+    setSaving(true)
+    setSaved(false)
     try {
-      await fetch('/api/settings', {
+      const res = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ twoCaptchaKey, heroSmsKey }),
       })
+      if (res.ok) {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 3000)
+      }
     } catch (error) {
       console.error('Failed to save settings:', error)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -343,6 +354,14 @@ export default function SettingsPage() {
             Balance: {heroSmsBalance}
           </p>
         )}
+      </div>
+
+      {/* Save Button */}
+      <div className="flex items-center gap-4">
+        <Button variant="cyber" onClick={saveApiKeys} disabled={saving} className="gap-2">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save API Keys'}
+        </Button>
+        {saved && <span className="text-sm text-green-400">✓ Saved successfully!</span>}
       </div>
     </div>
   )
