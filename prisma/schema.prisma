@@ -1,0 +1,281 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS - Logique stricte inspirée PanAIO/Cybersole
+// ============================================
+
+enum StoreName {
+  AMAZON
+  CARREFOUR
+}
+
+enum AmazonMode {
+  NORMAL       // Flux classique
+  FAST         // Requiert OfferID
+  SAFE         // Preload panier
+  SCRAPE       // Monitoring uniquement
+  FULL_ACCOUNT // Génération de cookies
+}
+
+enum CarrefourMode {
+  DRIVE
+  DELIVERY
+}
+
+enum TaskStatus {
+  IDLE
+  STARTING
+  LOGIN
+  MONITORING
+  ADD_TO_CART
+  SUBMITTING_ORDER
+  SUCCESS
+  // Erreurs extraites de la doc PanAIO
+  ERROR_PAYMENT      // Code 406
+  ERROR_CAPTCHA      // Code 418
+  ERROR_RATELIMIT    // Code 429
+  ERROR_LOGIN
+  ERROR_OUT_OF_STOCK
+  STOPPED
+}
+
+enum AccountStatus {
+  READY
+  BANNED
+  LOGIN_FAILED
+  CODE_REQUIRED
+  CAPTCHA_REQUIRED
+}
+
+enum ProxyStatus {
+  UNTESTED
+  WORKING
+  SLOW
+  DEAD
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String?
+  avatar        String?
+  licenseKey    String?
+  licenseType   String    @default("trial") // trial, monthly, lifetime
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  taskGroups    TaskGroup[]
+  profiles      Profile[]
+  accountGroups AccountGroup[]
+  proxyGroups   ProxyGroup[]
+  settings      Settings?
+}
+
+model TaskGroup {
+  id        String   @id @default(cuid())
+  name      String
+  color     String   @default("#2bea8e")
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Task {
+  id              String     @id @default(cuid())
+  taskGroupId     String
+  taskGroup       TaskGroup  @relation(fields: [taskGroupId], references: [id], onDelete: Cascade)
+  
+  // Store Type
+  store           StoreName
+  
+  // Common fields
+  productSku      String     // ASIN pour Amazon, PID pour Carrefour
+  productName     String?
+  productImage    String?
+  size            String?    // "Random", "S", "M" ou specific ID
+  quantity        Int        @default(1)
+  priceLimit      Float?     // Max Price
+  
+  // Mode - stocké pour mapper vers AmazonMode/CarrefourMode
+  mode            String
+  
+  // Status avec enum
+  status          TaskStatus @default(IDLE)
+  statusMessage   String?    // Message détaillé (ex: "Error 418 - Captcha needed")
+  
+  // Relations
+  profileId       String
+  profile         Profile    @relation(fields: [profileId], references: [id])
+  proxyGroupId    String?
+  proxyGroup      ProxyGroup? @relation(fields: [proxyGroupId], references: [id])
+  accountGroupId  String?
+  accountGroup    AccountGroup? @relation(fields: [accountGroupId], references: [id])
+  
+  // Configuration Spécifique Amazon (JSON)
+  // { offerId?: string, region: string, loginMethod: 'browser'|'request' }
+  amazonConfig    Json?
+  
+  // Configuration Spécifique Carrefour (JSON)
+  // { zipCode: string, slotPreference: 'morning'|'afternoon'|'evening', allowSubstitution: boolean }
+  carrefourConfig Json?
+  
+  // Metadata
+  scheduledStart  DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  completedAt     DateTime?
+}
+
+model Profile {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  
+  // Shipping Address
+  shippingFirstName   String
+  shippingLastName    String
+  shippingAddress1    String
+  shippingAddress2    String?
+  shippingCity        String
+  shippingState       String?
+  shippingZip         String
+  shippingCountry     String
+  shippingPhone       String
+  
+  // Billing Address
+  sameAsShipping      Boolean @default(true)
+  billingFirstName    String?
+  billingLastName     String?
+  billingAddress1     String?
+  billingAddress2     String?
+  billingCity         String?
+  billingState        String?
+  billingZip          String?
+  billingCountry      String?
+  billingPhone        String?
+  
+  // Payment
+  cardNumber          String  // Should be encrypted in production
+  cardExpMonth        String
+  cardExpYear         String
+  cardCvv             String  // Should be encrypted in production
+  cardHolder          String
+  
+  // Jig settings
+  autoJig             Boolean @default(false)
+  
+  tasks               Task[]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model AccountGroup {
+  id        String    @id @default(cuid())
+  name      String
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts  Account[]
+  tasks     Task[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Account {
+  id              String        @id @default(cuid())
+  accountGroupId  String
+  accountGroup    AccountGroup  @relation(fields: [accountGroupId], references: [id], onDelete: Cascade)
+  
+  // Store & Credentials
+  store           StoreName
+  email           String
+  password        String        // Encrypted in production
+  
+  // Status avec enum
+  status          AccountStatus @default(READY)
+  
+  // Session & Cookies
+  cookies         String?       @db.Text // Cookies de session validés
+  
+  // IMAP Config pour OTP Amazon (JSON)
+  // { host: "imap.gmail.com", port: 993, user: "...", pass: "..." }
+  imapConfig      Json?
+  
+  // 2FA
+  twoFactorSecret String?
+  
+  // Metadata
+  lastLogin       DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model ProxyGroup {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  proxies   Proxy[]
+  tasks     Task[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Proxy {
+  id           String      @id @default(cuid())
+  proxyGroupId String
+  proxyGroup   ProxyGroup  @relation(fields: [proxyGroupId], references: [id], onDelete: Cascade)
+  
+  host         String
+  port         Int
+  username     String?
+  password     String?
+  protocol     String      @default("http") // http, https, socks5
+  
+  // Health check avec enum
+  status       ProxyStatus @default(UNTESTED)
+  latency      Int?        // in ms
+  lastChecked  DateTime?
+  
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Settings {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Discord Webhooks
+  discordWebhookSuccess String?
+  discordWebhookFailure String?
+  
+  // Captcha
+  captchaProvider     String?  // 2captcha, capmonster, anticaptcha
+  captchaApiKey       String?
+  
+  // SMS
+  smsProvider         String?  // 5sim, sms-activate
+  smsApiKey           String?
+  
+  // Generator defaults
+  catchallDomain      String?
+  masterEmail         String?
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}

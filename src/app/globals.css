@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --background: 240 15% 6%;
+    --foreground: 0 0% 100%;
+    --card: 240 12% 10%;
+    --card-foreground: 0 0% 100%;
+    --popover: 240 12% 10%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 270 91% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 12% 12%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 240 12% 12%;
+    --muted-foreground: 240 12% 47%;
+    --accent: 270 95% 75%;
+    --accent-foreground: 240 15% 6%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 12% 20%;
+    --input: 240 12% 20%;
+    --ring: 270 91% 65%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    background-color: #0f0f14;
+    min-height: 100vh;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #18181f;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #2d2d3b;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3d3d4b;
+  }
+}
+
+@layer components {
+  .yvora-card {
+    @apply bg-yvora-card border border-yvora-border rounded-lg;
+  }
+
+  .yvora-input {
+    @apply bg-yvora-body border border-yvora-border text-white placeholder:text-yvora-muted 
+           focus:border-primary focus:ring-1 focus:ring-primary rounded-md px-3 py-2;
+  }
+
+  .yvora-button-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 
+           font-medium rounded-md px-4 py-2 transition-all duration-200
+           hover:shadow-[0_0_20px_rgba(168,85,247,0.4)];
+  }
+
+  .yvora-button-secondary {
+    @apply bg-yvora-card border border-yvora-border text-white 
+           hover:bg-yvora-border font-medium rounded-md px-4 py-2 transition-all duration-200;
+  }
+
+  .status-idle {
+    @apply bg-gray-500/20 text-gray-400 border border-gray-500/30;
+  }
+
+  .status-starting {
+    @apply bg-yellow-500/20 text-yellow-400 border border-yellow-500/30;
+  }
+
+  .status-monitoring {
+    @apply bg-blue-500/20 text-blue-400 border border-blue-500/30;
+  }
+
+  .status-carting {
+    @apply bg-orange-500/20 text-orange-400 border border-orange-500/30;
+  }
+
+  .status-checkout {
+    @apply bg-purple-500/20 text-purple-400 border border-purple-500/30;
+  }
+
+  .status-success {
+    @apply bg-primary/20 text-primary border border-primary/30;
+  }
+
+  .status-error {
+    @apply bg-red-500/20 text-red-400 border border-red-500/30;
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+  }
+
+  .sidebar-item {
+    @apply flex items-center gap-3 px-4 py-3 text-yvora-muted hover:text-white 
+           hover:bg-yvora-border/50 rounded-lg transition-all duration-200 cursor-pointer;
+  }
+
+  .sidebar-item.active {
+    @apply text-primary bg-primary/10 border-l-2 border-primary;
+  }
+}
+
+@layer utilities {
+  .text-gradient-yvora {
+    @apply bg-gradient-to-r from-purple-500 to-violet-400 bg-clip-text text-transparent;
+  }
+}
