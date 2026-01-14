@@ -8,8 +8,8 @@ export async function GET() {
     })
     const sanitized = profiles.map((p) => ({
       ...p,
-      cardNumberEnc: undefined,
-      cardCvvEnc: undefined,
+      cardNumber: undefined,
+      cardCvv: undefined,
     }))
     return NextResponse.json(sanitized)
   } catch (error) {
@@ -32,6 +32,7 @@ export async function POST(request: Request) {
         shippingZip: body.shippingZip,
         shippingCountry: body.shippingCountry,
         shippingPhone: body.shippingPhone,
+        sameAsShipping: body.sameAsShipping ?? true,
         billingFirstName: body.billingFirstName,
         billingLastName: body.billingLastName,
         billingAddress1: body.billingAddress1,
@@ -40,17 +41,18 @@ export async function POST(request: Request) {
         billingState: body.billingState,
         billingZip: body.billingZip,
         billingCountry: body.billingCountry,
-        cardholderName: body.cardholderName,
-        cardNumberEnc: body.cardNumber,
+        cardHolder: body.cardHolder,
+        cardNumber: body.cardNumber,
         cardExpMonth: body.cardExpMonth,
         cardExpYear: body.cardExpYear,
-        cardCvvEnc: body.cardCvv,
+        cardCvv: body.cardCvv,
         autoJig: body.autoJig || false,
         userId: body.userId,
       },
     })
     return NextResponse.json({ id: profile.id, name: profile.name }, { status: 201 })
   } catch (error) {
+    console.error('Failed to create profile:', error)
     return NextResponse.json({ error: 'Failed to create profile' }, { status: 500 })
   }
 }
