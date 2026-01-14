@@ -18,20 +18,18 @@ export async function POST(request: Request) {
     const body = await request.json()
     const account = await prisma.account.create({
       data: {
-        site: body.site,
+        store: body.store,
         email: body.email,
-        passwordEnc: body.password,
-        twoFaSecret: body.twoFaSecret,
-        imapHost: body.imapHost,
-        imapPort: body.imapPort,
-        imapUser: body.imapUser,
-        imapPassEnc: body.imapPass,
+        password: body.password,
+        twoFactorSecret: body.twoFactorSecret,
+        imapConfig: body.imapConfig,
         cookies: body.cookies,
         accountGroupId: body.accountGroupId,
       },
     })
     return NextResponse.json(account, { status: 201 })
   } catch (error) {
+    console.error('Failed to create account:', error)
     return NextResponse.json({ error: 'Failed to create account' }, { status: 500 })
   }
 }
